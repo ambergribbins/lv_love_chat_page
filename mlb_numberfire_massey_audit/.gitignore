@@ -1,0 +1,24 @@
+# Environment
+.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Data outputs (keep dir structure via .gitkeep, ignore generated content)
+data/raw/numberfire/*
+data/raw/odds/*
+data/processed/*
+data/results/*
+data/reports/*
+data/logs/*
+!data/**/.gitkeep
+
+# Keep manual inputs and example files tracked
+!data/manual/
+data/manual/*
+!data/manual/*EXAMPLE*.csv
+
+# Excel temp
+~$*.xlsx
