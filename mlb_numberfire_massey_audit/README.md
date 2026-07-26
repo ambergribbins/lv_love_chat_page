@@ -132,6 +132,18 @@ Behavior:
 > some CI/sandbox environments). Run the API path from an environment with open
 > outbound HTTPS, or use the manual CSV fallback.
 
+**Verify your key first** with the standalone checker (only needs `requests`):
+
+```bash
+python scripts/verify_odds_api.py                       # auth + quota + current odds
+python scripts/verify_odds_api.py --date 2026-07-25 --historical   # also test paid snapshot
+```
+
+It confirms auth, prints your remaining request quota, previews a few MLB
+moneylines, and tells you whether the historical (paid) endpoint is available on
+your plan. It reads the key from `--api-key`, then `ODDS_API_KEY`, then `.env`,
+and never prints the key or writes to disk.
+
 ## Commands
 
 ```bash
