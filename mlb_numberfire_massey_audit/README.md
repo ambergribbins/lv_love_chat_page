@@ -136,6 +136,38 @@ skipped), `--source-url`, `--data-quality` (`exact_historical_prediction`,
 previews every parsed game before writing. Then continue with
 `--build-candidates` / `--backtest` for that date.
 
+## Recovering historical numberFire predictions from FanDuel Research
+
+numberFire is now part of **FanDuel**, and its MLB win probabilities publish on
+FanDuel Research at a dated URL (month zero-padded, **day not** padded):
+
+```
+https://www.fanduel.com/research/mlb-betting-odds-MM-D-YYYY
+# e.g. .../mlb-betting-odds-06-4-2026 , .../mlb-betting-odds-06-24-2026
+```
+
+These are date-stamped article pages, so recovered rows are tagged
+`data_quality=article_timestamp`. FanDuel has bot protection and may return
+**HTTP 403** to scripts, so there are two paths:
+
+```bash
+# 1) Live fetch (works where your network/FanDuel allow it)
+python main.py --scrape-fanduel --date 2026-06-24
+
+# 2) Browser-saved file (403-proof): open the page, Ctrl+S -> "Webpage, HTML Only"
+python main.py --import-fanduel-file --input page.html --date 2026-06-24
+
+# Inspect page structure to calibrate the parser
+python main.py --probe-fanduel --date 2026-06-24          # live
+python main.py --probe-fanduel --input page.html --date 2026-06-24   # saved file
+```
+
+Both paths write to `data/manual/numberfire_predictions_YYYY-MM-DD.csv` (use
+`--append` to add to an existing file) so they feed straight into
+`--build-candidates` / `--backtest`. The win-probability parser is calibrated
+against real FanDuel markup; if a page yields nothing it logs why and writes
+nothing (never fabricated).
+
 ## Live odds via The Odds API (optional)
 
 Instead of manual odds CSVs you can pull MLB moneylines automatically from
@@ -239,6 +271,7 @@ mlb_numberfire_massey_audit/
     massey.py               # pre-game Massey ratings (no leakage)
     numberfire_scraper.py   # probe / scrape / manual load / backfill
     manual_entry.py         # capture a pasted numberFire slate into a manual CSV
+    fanduel_scraper.py      # recover numberFire predictions from FanDuel Research
     odds_collector.py       # manual CSV loader + The Odds API collector
     candidate_builder.py    # numberFire candidates + Massey join
     backtest.py             # backtest + comparison-group summaries

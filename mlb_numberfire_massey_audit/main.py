@@ -120,6 +120,55 @@ def cmd_enter_numberfire(args) -> None:
     print("Next: python main.py --build-candidates --date " + date)
 
 
+def cmd_fanduel(args) -> None:
+    """Recover numberFire predictions from FanDuel Research (live or saved file)."""
+    import json as _json
+
+    import fanduel_scraper as fd
+
+    date = args.date
+
+    # Probe mode: characterize page structure for parser calibration.
+    if args.probe_fanduel:
+        if args.input:
+            info = fd.probe_fanduel_file(args.input, date)
+        else:
+            _require(date, "--date")
+            info = fd.probe_fanduel_source(date)
+        print(_json.dumps(info, indent=2, default=str))
+        return
+
+    _require(date, "--date")
+    if args.input:
+        df = fd.import_fanduel_saved_file(args.input, date)
+    else:
+        try:
+            df = fd.scrape_fanduel_mlb(date)
+        except fd.FanDuelBlockedError as exc:
+            print(f"FanDuel blocked the live fetch: {exc}")
+            print(
+                "Save the page in your browser (Ctrl+S -> 'Webpage, HTML Only') "
+                "and re-run with:  --import-fanduel-file --input <file.html> "
+                f"--date {date}"
+            )
+            return
+
+    if df.empty:
+        print(
+            f"No numberFire predictions parsed for {date}. "
+            "Run with --probe-fanduel to inspect the page structure, then the "
+            "parser can be calibrated."
+        )
+        return
+
+    fd.save_to_manual(df, date, append=args.append)
+    cols = ["away_team", "home_team", "nf_pick_team", "nf_pick_probability",
+            "data_quality"]
+    print(df[cols].to_string(index=False))
+    print(f"\nSaved to data/manual/numberfire_predictions_{date}.csv")
+    print(f"Next: python main.py --build-candidates --date {date}")
+
+
 def cmd_build_candidates(date: str) -> None:
     from candidate_builder import (
         add_massey_to_candidates,
@@ -178,6 +227,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--scrape-numberfire", action="store_true")
     p.add_argument("--enter-numberfire", action="store_true",
                    help="Manually enter/import a numberFire slate for --date.")
+    p.add_argument("--scrape-fanduel", action="store_true",
+                   help="Live-fetch FanDuel Research (numberFire) for --date.")
+    p.add_argument("--import-fanduel-file", action="store_true",
+                   help="Parse a browser-saved FanDuel HTML file (--input) for --date.")
+    p.add_argument("--probe-fanduel", action="store_true",
+                   help="Inspect a FanDuel page's structure (--date live, or --input file).")
     p.add_argument("--backfill-numberfire", action="store_true")
     p.add_argument("--build-candidates", action="store_true")
     p.add_argument("--backtest", action="store_true")
@@ -216,6 +271,8 @@ def main(argv=None) -> int:
     elif args.enter_numberfire:
         _require(args.date, "--date")
         cmd_enter_numberfire(args)
+    elif args.scrape_fanduel or args.import_fanduel_file or args.probe_fanduel:
+        cmd_fanduel(args)
     elif args.backfill_numberfire:
         _require(args.start_date, "--start-date")
         _require(args.end_date, "--end-date")
