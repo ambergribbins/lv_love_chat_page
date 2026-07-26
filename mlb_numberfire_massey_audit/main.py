@@ -4,6 +4,9 @@ Examples
 --------
   python main.py --probe-numberfire --date 2026-07-25
   python main.py --scrape-numberfire --date 2026-07-25
+  python main.py --enter-numberfire --date 2026-07-25            # interactive
+  python main.py --enter-numberfire --date 2026-07-25 --input slate.txt \
+      --data-quality exact_historical_prediction
   python main.py --backfill-numberfire --start-date 2026-03-26 --end-date 2026-07-25
   python main.py --build-candidates --date 2026-07-25
   python main.py --backtest --start-date 2026-03-26 --end-date 2026-07-25
@@ -68,6 +71,55 @@ def cmd_backfill(start_date: str, end_date: str) -> None:
     )
 
 
+def cmd_enter_numberfire(args) -> None:
+    """Manual-entry helper -> data/manual/numberfire_predictions_DATE.csv."""
+    import sys
+
+    import manual_entry as me
+
+    date = args.date
+    dq = args.data_quality
+    if dq and dq not in me.VALID_DATA_QUALITY:
+        raise SystemExit(
+            f"--data-quality must be one of {sorted(me.VALID_DATA_QUALITY)}"
+        )
+    source_url = args.source_url or "manual"
+
+    # Gather input text from --input file, stdin (piped), or interactive.
+    text = None
+    if args.input:
+        text = open(args.input).read()
+    elif not sys.stdin.isatty():
+        piped = sys.stdin.read()
+        text = piped if piped.strip() else None
+
+    try:
+        if text is not None:
+            dq = dq or "manual_import"
+            if args.loose:
+                rows = me.parse_loose(
+                    text, date, data_quality=dq, source_url=source_url,
+                    home_first=args.home_first,
+                )
+            else:
+                rows = me.parse_structured(
+                    text, date, data_quality=dq, source_url=source_url
+                )
+        else:
+            rows = me.interactive_entry(date, data_quality=dq, source_url=source_url)
+    except me.ManualEntryError as exc:
+        raise SystemExit(f"Manual entry failed: {exc}")
+
+    if not rows:
+        print("No rows entered; nothing written.")
+        return
+
+    me.preview(rows)
+    path = me.write_manual_csv(date, rows, append=args.append)
+    print(f"\nWrote {len(rows)} game(s) to {path} (append={args.append}).")
+    print("Next: python main.py --build-candidates --date " + date)
+
+
 def cmd_build_candidates(date: str) -> None:
     from candidate_builder import (
         add_massey_to_candidates,
@@ -124,6 +176,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--probe-numberfire", action="store_true")
     p.add_argument("--scrape-numberfire", action="store_true")
+    p.add_argument("--enter-numberfire", action="store_true",
+                   help="Manually enter/import a numberFire slate for --date.")
     p.add_argument("--backfill-numberfire", action="store_true")
     p.add_argument("--build-candidates", action="store_true")
     p.add_argument("--backtest", action="store_true")
@@ -132,6 +186,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--start-date", type=str, default=None)
     p.add_argument("--end-date", type=str, default=None)
     p.add_argument("--year", type=int, default=config.SEASON_YEAR)
+    # Manual-entry options (used with --enter-numberfire).
+    p.add_argument("--input", type=str, default=None,
+                   help="Read slate text from this file instead of stdin/interactive.")
+    p.add_argument("--loose", action="store_true",
+                   help="Parse --input as loose pasted text (default: structured).")
+    p.add_argument("--home-first", action="store_true",
+                   help="Loose mode: teams are listed home-first (default away-first).")
+    p.add_argument("--append", action="store_true",
+                   help="Append to an existing manual CSV instead of overwriting.")
+    p.add_argument("--data-quality", type=str, default=None,
+                   help="Tag rows: exact_historical_prediction | observed_current_page "
+                        "| article_timestamp | wayback_snapshot | manual_import.")
+    p.add_argument("--source-url", type=str, default=None,
+                   help="Source URL to record on manual rows.")
     return p
 
 
@@ -145,6 +213,9 @@ def main(argv=None) -> int:
     elif args.scrape_numberfire:
         _require(args.date, "--date")
         cmd_scrape(args.date)
+    elif args.enter_numberfire:
+        _require(args.date, "--date")
+        cmd_enter_numberfire(args)
     elif args.backfill_numberfire:
         _require(args.start_date, "--start-date")
         _require(args.end_date, "--end-date")

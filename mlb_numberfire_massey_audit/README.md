@@ -102,6 +102,40 @@ Teams can be any alias (e.g. `OAK`, `Athletics`, `CWS`) — everything is
 normalized by `team_map.py`. Final scores come from the free MLB Stats API, so
 you only supply predictions and odds.
 
+## Manual-entry helper (fastest way to capture a numberFire slate)
+
+Instead of hand-editing CSVs, use the helper to turn a numberFire slate into
+`data/manual/numberfire_predictions_YYYY-MM-DD.csv`. It computes the pick side,
+normalizes team aliases, validates probabilities, and — importantly — makes you
+**declare how the slate was captured** so a current-page copy is never mistaken
+for a true historical prediction.
+
+Three input modes:
+
+```bash
+# 1) Interactive, game-by-game (prompts for the data_quality tag)
+python main.py --enter-numberfire --date 2026-07-25
+
+# 2) Structured file/stdin: "AWAY, HOME, AWAY_PROB[, HOME_PROB][, NOTES]"
+#    (blank HOME_PROB auto-fills 1 - AWAY_PROB)
+printf 'NYY, BOS, 52.5%%, , from game page\nLAD, SF, 0.610, 0.390\n' \
+  | python main.py --enter-numberfire --date 2026-07-25 \
+      --data-quality exact_historical_prediction
+
+python main.py --enter-numberfire --date 2026-07-25 --input slate.txt \
+    --data-quality exact_historical_prediction
+
+# 3) Loose paste (team + percent lines; away team first, or --home-first)
+python main.py --enter-numberfire --date 2026-07-25 --loose --input paste.txt
+```
+
+Flags: `--append` (add to an existing file; duplicate `date+teams` rows are
+skipped), `--source-url`, `--data-quality` (`exact_historical_prediction`,
+`observed_current_page`, `article_timestamp`, `wayback_snapshot`,
+`manual_import`). Probabilities accept `52.5%`, `52.5`, or `0.525`. The helper
+previews every parsed game before writing. Then continue with
+`--build-candidates` / `--backtest` for that date.
+
 ## Live odds via The Odds API (optional)
 
 Instead of manual odds CSVs you can pull MLB moneylines automatically from
@@ -204,6 +238,7 @@ mlb_numberfire_massey_audit/
     mlb_results.py          # MLB Stats API scores + moneyline grading
     massey.py               # pre-game Massey ratings (no leakage)
     numberfire_scraper.py   # probe / scrape / manual load / backfill
+    manual_entry.py         # capture a pasted numberFire slate into a manual CSV
     odds_collector.py       # manual CSV loader + The Odds API collector
     candidate_builder.py    # numberFire candidates + Massey join
     backtest.py             # backtest + comparison-group summaries
