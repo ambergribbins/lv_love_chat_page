@@ -102,6 +102,36 @@ Teams can be any alias (e.g. `OAK`, `Athletics`, `CWS`) — everything is
 normalized by `team_map.py`. Final scores come from the free MLB Stats API, so
 you only supply predictions and odds.
 
+## Live odds via The Odds API (optional)
+
+Instead of manual odds CSVs you can pull MLB moneylines automatically from
+[The Odds API](https://the-odds-api.com). Set in `.env`:
+
+```bash
+ODDS_SOURCE=api
+ODDS_API_KEY=your_key_here
+ODDS_API_REGIONS=us
+ODDS_API_MODE=auto          # historical for past dates, current for today/future
+# ODDS_API_BOOKMAKERS=draftkings,fanduel   # optional; blank = all books
+```
+
+Behavior:
+- `ODDS_API_MODE=historical` pulls a snapshot near **noon ET** of each game date
+  (the pre-game line) from the `/v4/historical/...` endpoint — this is what a
+  real past-date backtest needs, and requires a **paid** Odds API plan.
+- `ODDS_API_MODE=current` uses live/upcoming odds only (works on the free tier
+  but can't price past dates).
+- `ODDS_API_MODE=auto` picks historical for past dates and current for today.
+- Games are matched to a date by the **US/Eastern** date of `commence_time`, so
+  late West-coast games land on the correct MLB day.
+- One row is produced per (game, sportsbook); raw JSON is saved under
+  `data/raw/odds/<date>/`. On any API error the loader logs and returns empty,
+  so `load_moneyline_odds` **falls back to the manual CSV** for that date.
+
+> Note: The Odds API host may be blocked by restrictive network policies (e.g.
+> some CI/sandbox environments). Run the API path from an environment with open
+> outbound HTTPS, or use the manual CSV fallback.
+
 ## Commands
 
 ```bash
@@ -162,7 +192,7 @@ mlb_numberfire_massey_audit/
     mlb_results.py          # MLB Stats API scores + moneyline grading
     massey.py               # pre-game Massey ratings (no leakage)
     numberfire_scraper.py   # probe / scrape / manual load / backfill
-    odds_collector.py       # manual CSV loader (+ API scaffold)
+    odds_collector.py       # manual CSV loader + The Odds API collector
     candidate_builder.py    # numberFire candidates + Massey join
     backtest.py             # backtest + comparison-group summaries
     reports.py              # markdown / csv / xlsx reports

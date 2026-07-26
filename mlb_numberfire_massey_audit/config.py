@@ -87,6 +87,20 @@ DEFAULT_HOME_FIELD_RUNS = _get_float("DEFAULT_HOME_FIELD_RUNS", 0.15)
 ODDS_SOURCE = os.getenv("ODDS_SOURCE", "manual").strip().lower()
 ODDS_API_KEY = os.getenv("ODDS_API_KEY", "").strip()
 
+# The Odds API (the-odds-api.com) settings.
+ODDS_API_BASE = os.getenv("ODDS_API_BASE", "https://api.the-odds-api.com").strip()
+ODDS_API_SPORT = os.getenv("ODDS_API_SPORT", "baseball_mlb").strip()
+ODDS_API_REGIONS = os.getenv("ODDS_API_REGIONS", "us").strip()
+# Optional comma-separated bookmaker keys (e.g. "draftkings,fanduel").
+# Blank = all books allowed by the plan for the chosen region(s).
+ODDS_API_BOOKMAKERS = os.getenv("ODDS_API_BOOKMAKERS", "").strip()
+# "historical" (snapshot near noon ET of each date, needed for backtests),
+# "current" (live/upcoming only), or "auto" (historical for past dates,
+# current for today/future).
+ODDS_API_MODE = os.getenv("ODDS_API_MODE", "auto").strip().lower()
+# Hour (US/Eastern) to anchor the historical snapshot request.
+ODDS_API_SNAPSHOT_HOUR_ET = _get_int("ODDS_API_SNAPSHOT_HOUR_ET", 12)
+
 # --- Season ----------------------------------------------------------------
 SEASON_YEAR = _get_int("SEASON_YEAR", 2026)
 
